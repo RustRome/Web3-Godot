@@ -1,0 +1,16 @@
+[package]
+name = "Web3-Godot"
+version = "0.1.0"
+authors = ["Pasquale De Rose"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethabi = "9.0.0"
+#gdnative = "0.6.0"
+gdnative = { git = "https://github.com/GodotNativeTools/godot-rust" }
+web3     = { git = "https://github.com/tomusdrw/rust-web3" }
+
+[lib]
+crate-type = ["cdylib"]
