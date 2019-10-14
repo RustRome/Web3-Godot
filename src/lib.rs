@@ -21,11 +21,19 @@ impl VariantArray {
             .iter()
             .map(|s| {
                 if let Some(string) = s.try_to_string() {
-                    Token::String(string)
-                } else if let Some(n) = s.try_to_i64() {
-                    Token::Uint(U256::from(n as u64))
-                } else {
-                    Token::Bool(false)
+                    if string.starts_with("0x") {
+                        Token::Address(string.as_str().parse().unwrap())
+                    }else{
+                        Token::String(string)
+                    }
+                } else if let Some(number) = s.try_to_i64() {
+                    Token::Uint(U256::from(number as u64))
+                } else if let Some(boolean) = s.try_to_bool() {
+                    Token::Bool(boolean)
+                } else if let Some(array) = s.try_to_array() {
+                    Token::Array(VariantArray(array).to_vec())
+                } else{
+                    Token::Uint(U256::from(0))
                 }
             })
             .filter(|t| !t.type_check(&ParamType::Bool))
@@ -131,6 +139,15 @@ impl Web3Godot {
         self.contract.as_ref().unwrap().call( function_name.as_str(), 
                                               tmp_tokenized_parameters.to_vec().as_slice(),
                                               from.parse().unwrap(), Options::default() );
+    }
+
+    #[export]
+    fn query( &self, _owner: gdnative::Node, function_name: String, 
+              parameters: gdnative::VariantArray, from: String ) {
+        let tmp_tokenized_parameters = VariantArray( parameters );
+        self.contract.as_ref().unwrap().query( function_name.as_str(), 
+                                              tmp_tokenized_parameters.to_vec().as_slice(),
+                                              from.parse().unwrap(), Options::default(), None );
     }
 }
 
