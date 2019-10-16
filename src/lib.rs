@@ -125,10 +125,10 @@ impl Web3Godot {
     }
 
     #[export]
-    fn call( &self, _owner: gdnative::Node, function_name: String, 
+    fn call( &self, _owner: gdnative::Node, function_name: String,
              parameters: gdnative::VariantArray, from: String ) {
         let tmp_tokenized_parameters = VariantArray( parameters );
-        self.contract.as_ref().unwrap().call( function_name.as_str(), 
+        self.contract.as_ref().unwrap().call( function_name.as_str(),
                                               tmp_tokenized_parameters.to_vec().as_slice(),
                                               from.parse().unwrap(), Options::default() );
     }
