@@ -5,9 +5,9 @@ extern crate web3;
 use ethabi::{ParamType, Token};
 use gdnative::*;
 use std::iter::IntoIterator;
-use web3::contract::{tokens::Tokenizable, Contract, Error, Options};
+use web3::contract::{tokens::Tokenizable, Contract, Error, Options, QueryResult};
 use web3::futures::Future;
-use web3::types::{Address, U256};
+use web3::types::{Address, U256, H160};
 
 struct VariantArray(gdnative::VariantArray);
 
@@ -142,12 +142,12 @@ impl Web3Godot {
     }
 
     #[export]
-    fn query( &self, _owner: gdnative::Node, function_name: String, 
+    fn query( &self, _owner: gdnative::Node, function_name: String,
               parameters: gdnative::VariantArray, from: String ) {
         let tmp_tokenized_parameters = VariantArray( parameters );
-        self.contract.as_ref().unwrap().query( function_name.as_str(), 
+        let _: QueryResult<VariantArray, _> = self.contract.as_ref().unwrap().query( function_name.as_str(),
                                               tmp_tokenized_parameters.to_vec().as_slice(),
-                                              from.parse().unwrap(), Options::default(), None );
+                                              Some(H160::from_slice(from.as_str().as_bytes())), Options::default(), None );
     }
 }
 
