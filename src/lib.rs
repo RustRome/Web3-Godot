@@ -62,8 +62,10 @@ impl VariantArray {
                         .push(&gdnative::Variant::from_bool(boolean));
                 }
                 Token::Bytes(bytes) => {
-                    let mut tmp_bytearray : ByteArray = ByteArray::new();
-                    bytes.iter().map(|s| tmp_bytearray.push(*s));
+                    let mut tmp_bytearray: ByteArray = ByteArray::new();
+                    for b in bytes {
+                        tmp_bytearray.push(b);
+                    };
                     variant_array
                         .0
                         .push(&gdnative::Variant::from_byte_array(&tmp_bytearray));
