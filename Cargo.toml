@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 ethabi = "9.0.0"
-#gdnative = "0.6.0"
+futures = "0.1.29"
 gdnative = { git = "https://github.com/GodotNativeTools/godot-rust" }
 web3     = { git = "https://github.com/tomusdrw/rust-web3" }
 

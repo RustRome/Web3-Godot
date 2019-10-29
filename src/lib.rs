@@ -1,13 +1,13 @@
 extern crate ethabi;
 extern crate gdnative;
 extern crate web3;
+extern crate futures;
 
 use ethabi::{ParamType, Token};
 use gdnative::*;
-use std::iter::IntoIterator;
 use web3::contract::{tokens::Tokenizable, Contract, Error, Options, QueryResult};
 use web3::futures::Future;
-use web3::types::{Address, U256, H160};
+use web3::types::{U256, H160};
 
 struct VariantArray(gdnative::VariantArray);
 
@@ -16,7 +16,7 @@ impl VariantArray {
         VariantArray(variant)
     }
 
-    fn to_vec(&self) -> Vec<Token> {
+    fn to_token_vec( &self ) -> Vec<Token> {
         self.0
             .iter()
             .map(|s| {
@@ -31,13 +31,21 @@ impl VariantArray {
                 } else if let Some(boolean) = s.try_to_bool() {
                     Token::Bool(boolean)
                 } else if let Some(array) = s.try_to_array() {
-                    Token::Array(VariantArray(array).to_vec())
+                    Token::Array(VariantArray(array).to_token_vec())
                 } else{
                     Token::Uint(U256::from(0))
                 }
             })
             .filter(|t| !t.type_check(&ParamType::Bool))
             .collect::<Vec<Token>>()
+    }
+
+    fn to_vec( &self ) -> Vec<gdnative::Variant> {
+        self.0
+            .iter()
+            .map(| variant | {
+                variant.clone()
+            } ).collect::<Vec<gdnative::Variant>>()
     }
 }
 
@@ -95,8 +103,8 @@ impl Tokenizable for VariantArray {
         }
     }
 
-    fn into_token(self) -> Token {
-        Token::Array(self.to_vec())
+    fn into_token( self ) -> Token {
+        Token::Array( self.to_token_vec() )
     }
 }
 
@@ -104,12 +112,12 @@ impl Tokenizable for VariantArray {
 #[inherit(Node)]
 pub struct Web3Godot {
     web3: Option<web3::Web3<web3::transports::Http>>,
-    contract: Option<web3::contract::Contract<web3::transports::Http>>,
+    contract: Option<Contract<web3::transports::Http>>,
 }
 
 #[methods]
 impl Web3Godot {
-    fn _init(_owner: Node) -> Self {
+    fn _init( _owner: Node ) -> Self {
         Web3Godot {
             web3: None,
             contract: None,
@@ -117,10 +125,10 @@ impl Web3Godot {
     }
 
     #[export]
-    fn initialize_http_transport(&mut self, _owner: gdnative::Node, http_url: String) {
-        let (eloop, http) = web3::transports::Http::new(http_url.as_str()).unwrap();
+    fn initialize_http_transport( &mut self, _owner: gdnative::Node, http_url: String ) {
+        let ( eloop, http ) = web3::transports::Http::new( http_url.as_str() ).unwrap();
         eloop.into_remote();
-        self.web3 = Some(web3::Web3::new(http));
+        self.web3 = Some( web3::Web3::new( http ) );
     }
 
     #[export]
@@ -139,21 +147,34 @@ impl Web3Godot {
              parameters: gdnative::VariantArray, from: String ) {
         let tmp_tokenized_parameters = VariantArray( parameters );
         self.contract.as_ref().unwrap().call( function_name.as_str(),
-                                              tmp_tokenized_parameters.to_vec().as_slice(),
+                                              tmp_tokenized_parameters.to_token_vec().as_slice(),
                                               from.parse().unwrap(), Options::default() );
     }
 
     #[export]
-    fn query( &self, _owner: gdnative::Node, function_name: String,
+    fn query( &self, mut _owner: gdnative::Node, function_name: String,
               parameters: gdnative::VariantArray, from: String ) {
         let tmp_tokenized_parameters = VariantArray( parameters );
-        let _: QueryResult<VariantArray, _> = self.contract.as_ref().unwrap().query( function_name.as_str(),
-                                              tmp_tokenized_parameters.to_vec().as_slice(),
-                                              Some(H160::from_slice(from.as_str().as_bytes())), Options::default(), None );
+        let future_result : QueryResult<VariantArray, _> = self.contract.as_ref().unwrap().query( function_name.as_str(),
+                                                                                                  tmp_tokenized_parameters.to_token_vec().as_slice(),
+                                                                                                  Some( H160::from_slice( from.as_str().as_bytes() ) ), Options::default(), None );
+        
+        future_result.then( | result | {
+            match result {
+                Ok( values ) => unsafe {
+                    _owner.emit_signal( GodotString::from_str( "web3_query_result" ), values.to_vec().as_slice() )   
+                },
+                Err( _ ) => unsafe {
+                    _owner.emit_signal( GodotString::from_str( "web3_query_error" ), &vec![] )
+                }
+            };
+            let the_meaning_of_life = futures::future::finished::<u32, u32>(42);
+            the_meaning_of_life
+        } );
     }
 }
 
-fn init(handle: gdnative::init::InitHandle) {
+fn init( handle: gdnative::init::InitHandle ) {
     handle.add_class::<Web3Godot>();
 }
 
